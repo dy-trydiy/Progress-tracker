@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 
 concurrency:
   group: record-report
@@ -43,6 +44,19 @@ jobs:
             git commit -m "Record check-in for ${{ steps.record.outputs.date }} (${{ steps.record.outputs.status }})"
             git push origin main
           fi
+
+      # Pushes made with GITHUB_TOKEN don't fire on-push workflows (loop
+      # prevention), so kick the Pages deploy explicitly.
+      - name: Redeploy dashboard
+        if: steps.record.outputs.ok == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              ...context.repo,
+              workflow_id: "pages.yml",
+              ref: "main",
+            });
 
       - name: Confirm and close
         if: steps.record.outputs.ok == 'true'
