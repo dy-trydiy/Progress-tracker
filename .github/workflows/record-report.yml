@@ -1,0 +1,85 @@
+name: Record daily check-in
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: record-report
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'daily-report') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Parse report and update log
+        id: record
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: node scripts/record-report.mjs
+
+      - name: Commit updated log
+        if: steps.record.outputs.ok == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/log.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Record check-in for ${{ steps.record.outputs.date }} (${{ steps.record.outputs.status }})"
+            git push origin main
+          fi
+
+      - name: Confirm and close
+        if: steps.record.outputs.ok == 'true'
+        uses: actions/github-script@v7
+        env:
+          SUMMARY: ${{ steps.record.outputs.summary }}
+          REPORT_DATE: ${{ steps.record.outputs.date }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            await github.rest.issues.createComment({
+              owner, repo, issue_number,
+              body: process.env.SUMMARY + "\n\nThe [dashboard](https://" + owner.toLowerCase() + ".github.io/" + repo + "/) will refresh in a minute or two.",
+            });
+            await github.rest.issues.update({ owner, repo, issue_number, state: "closed", state_reason: "completed" });
+
+            // Close any open reminder for this date.
+            const reminders = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "daily-nudge", per_page: 100,
+            });
+            for (const reminder of reminders.data) {
+              if (reminder.title.includes(process.env.REPORT_DATE)) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: reminder.number, state: "closed", state_reason: "completed",
+                });
+              }
+            }
+
+      - name: Explain what went wrong
+        if: steps.record.outputs.ok == 'false'
+        uses: actions/github-script@v7
+        env:
+          ERROR: ${{ steps.record.outputs.error }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: context.issue.number,
+              body: "⚠️ This check-in couldn't be recorded: " + process.env.ERROR + "\n\nEdit the issue body to fix it — the report will be re-processed automatically.",
+            });

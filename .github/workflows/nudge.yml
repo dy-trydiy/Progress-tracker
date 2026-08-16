@@ -1,0 +1,67 @@
+name: Daily check-in nudge
+
+on:
+  schedule:
+    # 18:00 UTC daily — adjust to your evening. GitHub notifies you (email/app)
+    # about the reminder issue this creates.
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create a reminder if today isn't reported yet
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const config = JSON.parse(fs.readFileSync("data/config.json", "utf8"));
+            const log = JSON.parse(fs.readFileSync("data/log.json", "utf8"));
+            const { owner, repo } = context.repo;
+
+            const today = new Intl.DateTimeFormat("en-CA", {
+              timeZone: config.timezone || "UTC",
+              year: "numeric", month: "2-digit", day: "2-digit",
+            }).format(new Date());
+
+            if (today < config.startDate || today > config.endDate) {
+              core.info(`${today} is outside the challenge window — no nudge.`);
+              return;
+            }
+            if (log.entries && log.entries[today]) {
+              core.info(`${today} is already reported — no nudge.`);
+              return;
+            }
+
+            const open = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "daily-nudge", per_page: 100,
+            });
+            if (open.data.some((issue) => issue.title.includes(today))) {
+              core.info("Reminder already open — no duplicate.");
+              return;
+            }
+
+            const reportUrl = `https://github.com/${owner}/${repo}/issues/new?template=daily-report.yml`;
+            const dashboardUrl = `https://${owner.toLowerCase()}.github.io/${repo}/`;
+            await github.rest.issues.create({
+              owner, repo,
+              title: `⏰ Check-in reminder — ${today}`,
+              labels: ["daily-nudge"],
+              assignees: [config.participant],
+              body: [
+                `Hey @${config.participant} — today's result for **${config.goalName}** hasn't been reported yet.`,
+                "",
+                `👉 **[Report today's check-in](${reportUrl})** (takes 10 seconds)`,
+                "",
+                `This reminder closes itself as soon as the check-in is recorded. Dashboard: ${dashboardUrl}`,
+              ].join("\n"),
+            });
