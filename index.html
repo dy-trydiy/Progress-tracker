@@ -311,6 +311,7 @@
   const rates = config.rates || {};
   const perDay = rates.success ?? config.rewardTotal / totalDays;
   const perPartial = rates.partial ?? perDay / 2;
+  const perSlip = rates.slip ?? 0;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: config.timezone || "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   const todayMs = Math.min(Math.max(parse(today), startMs - DAY), endMs);
   const started = parse(today) >= startMs;
@@ -338,7 +339,7 @@
       bestStreak = Math.max(bestStreak, run);
       if (run % bonusDays === 0) bonusEarned += bonusBlock;
     } else if (e.status === "partial") { partialCt++; baseEarned += perPartial; run = 0; }
-    else { slips++; run = 0; }
+    else { slips++; baseEarned += perSlip; run = 0; }
   }
   const currentStreak = run;
   const earned = baseEarned + bonusEarned;
@@ -383,7 +384,7 @@
   const tiles = [
     { label: "Full successes", value: String(clean), hint: "of " + elapsed + " day" + (elapsed === 1 ? "" : "s") + " so far" },
     { label: "Partial days", value: String(partialCt), hint: money(perPartial, 2) + " each" },
-    { label: "Slips", value: String(slips), hint: "no reward, no penalty" },
+    { label: "Slips", value: String(slips), hint: perSlip > 0 ? money(perSlip, 2) + " each" : "no reward, no penalty" },
     { label: "Current streak", value: currentStreak + "d", hint: "bonus in " + toNextBonus + "d · best " + bestStreak + "d" },
     { label: "Streak bonus", value: money(bonusEarned), hint: "+" + money(bonusBlock, 2) + " per " + bonusDays + " straight ✅" },
     { label: "Still winnable", value: money(earned + simBase + simBonus), hint: remainingDays + " days still open" },
@@ -410,7 +411,7 @@
     $("checkin-card").style.display = "block";
     $("ci-btn-success").querySelector("small").textContent = "+" + money(perDay, 2) + "/day";
     $("ci-btn-partial").querySelector("small").textContent = "+" + money(perPartial, 2) + "/day";
-    $("ci-btn-slip").querySelector("small").textContent = money(0, 2);
+    $("ci-btn-slip").querySelector("small").textContent = perSlip > 0 ? "+" + money(perSlip, 2) + "/day" : money(0, 2);
     const todayEntry = entries[today];
     let status = null;
     const statusLabel = (st) =>
@@ -565,7 +566,7 @@
         rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "½ Partial · +" + money(perPartial, 2) }];
       } else if (e) {
         cell.classList.add("slip"); cell.textContent = "✗";
-        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "✗ Slip · not counted" }];
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: perSlip > 0 ? "✗ Slip · +" + money(perSlip, 2) : "✗ Slip · not counted" }];
       } else if (dstr === today && !finished) {
         cell.classList.add("pending"); cell.textContent = String(dnum);
         rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "Today — not reported yet" }];
@@ -606,6 +607,7 @@
         cum += perDay; chRun++;
         if (chRun % bonusDays === 0) cum += bonusBlock;
       } else if (e && e.status === "partial") { cum += perPartial; chRun = 0; }
+      else if (e) { cum += perSlip; chRun = 0; }
       else if (d !== today) chRun = 0;
       actual.push({ ms, v: cum });
     }
@@ -703,7 +705,7 @@
     const cells = [
       { text: dstr },
       { text: e.status === "success" ? "✓ Success" : e.status === "partial" ? "½ Partial" : "✗ Slip" },
-      { text: e.status === "success" ? "+" + money(perDay, 2) : e.status === "partial" ? "+" + money(perPartial, 2) : money(0, 2),
+      { text: e.status === "success" ? "+" + money(perDay, 2) : e.status === "partial" ? "+" + money(perPartial, 2) : money(perSlip, 2),
         cls: e.status === "slip" ? "" : "earn-pos" },
       { text: e.note || "" },
     ];
@@ -717,7 +719,7 @@
   }
 
   $("footer").textContent = "A success pays " + money(perDay, 2) + " a day, a partial day " + money(perPartial, 2) +
-    ", a slip nothing (and costs nothing). Every " + bonusDays + " consecutive successes add a " + bonusPct +
+    ", a slip " + (perSlip > 0 ? money(perSlip, 2) : "nothing (and costs nothing)") + ". Every " + bonusDays + " consecutive successes add a " + bonusPct +
     "% bonus (+" + money(bonusBlock, 2) + "). Goal for the period: " + money(config.rewardTotal) +
     ". Share this page's link with anyone who should follow along. ";
   const adminLink = document.createElement("a");

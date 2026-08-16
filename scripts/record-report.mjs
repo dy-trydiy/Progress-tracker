@@ -99,6 +99,7 @@ const totalDays = dayCount(config.startDate, config.endDate);
 const rates = config.rates || {};
 const perDay = rates.success ?? config.rewardTotal / totalDays;
 const perPartial = rates.partial ?? perDay / 2;
+const perSlip = rates.slip ?? 0;
 const bonusDays = config.bonus?.streakDays || 5;
 const bonusPct = config.bonus?.percent || 20;
 const bonusBlock = (bonusDays * perDay * bonusPct) / 100;
@@ -114,7 +115,7 @@ for (let ms = startMs; ms <= stopMs; ms += 86400000) {
     clean++; base += perDay; run++;
     if (run % bonusDays === 0) bonusEarned += bonusBlock;
   } else if (e.status === "partial") { partialCt++; base += perPartial; run = 0; }
-  else { slips++; run = 0; }
+  else { slips++; base += perSlip; run = 0; }
 }
 const earned = base + bonusEarned;
 const streak = run;
@@ -133,7 +134,9 @@ if (status === "success") {
 } else if (status === "partial") {
   verdict = `**${date} recorded as a partial day** — ${money(perPartial)} added. The bonus streak resets, but the money still counts.`;
 } else {
-  verdict = `**${date} recorded as a slip** — no reward for this day, and that's the whole consequence. Tomorrow is a fresh ${money(perDay)}.`;
+  verdict = perSlip > 0
+    ? `**${date} recorded as a slip** — ${money(perSlip)} added. Tomorrow is a fresh ${money(perDay)}.`
+    : `**${date} recorded as a slip** — no reward for this day, and that's the whole consequence. Tomorrow is a fresh ${money(perDay)}.`;
 }
 
 const summary = [

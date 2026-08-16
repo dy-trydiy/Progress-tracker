@@ -13,7 +13,7 @@ Each day is reported as one of three results:
 |---|---|---|
 | ✅ **Success** — fully on track | `rates.success` per day (e.g. $10) | extends it |
 | 🌓 **Partial** — reduced reward | `rates.partial` per day (e.g. $3) | resets it |
-| ❌ **Slip** — off track | nothing (and no penalty) | resets it |
+| ❌ **Slip** — off track | `rates.slip` per day (usually $0) | resets it |
 
 `rewardTotal` is the **goal for the period** — the number the progress bar and hero figure
 measure against. With fixed daily rates, a perfect run (plus bonuses) can pay more than the
@@ -44,30 +44,28 @@ slips, and unreported days all reset the streak. Configure via `bonus` in `data/
 
 ## Admin: changing the challenge parameters
 
-Edit [`data/config.json`](data/config.json) (the dashboard footer has a direct
-"Admin: challenge settings" link):
+Everything lives in [`data/config.json`](data/config.json) (the dashboard footer has a direct
+"Admin: challenge settings" link). Every knob:
 
-```json
-{
-  "goalName": "Gluten-Free Challenge",
-  "startDate": "2026-08-16",
-  "endDate": "2027-02-15",
-  "rewardTotal": 2000,
-  "rates": { "success": 10, "partial": 3, "slip": 0 },
-  "currency": "USD",
-  "timezone": "UTC",
-  "participant": "dy-trydiy",
-  "participantEmail": ""
-}
-```
+| Parameter | Meaning | Example |
+|---|---|---|
+| `goalName`, `description` | dashboard title and subtitle | "Eat Healthy Challenge" |
+| `startDate`, `endDate` | challenge window (`YYYY-MM-DD`, inclusive) | 2026-08-16 → 2027-03-31 |
+| `rewardTotal` | the **goal for the period** — what the progress bar measures against | 2000 |
+| `rates.success` | reward per full success day | 10 |
+| `rates.partial` | reward per partial day | 3 |
+| `rates.slip` | reward per slip day (usually 0) | 0 |
+| `bonus.streakDays` | consecutive successes needed per bonus block | 5 |
+| `bonus.percent` | bonus as % of the block's success reward (5 × $10 × 20% = +$10) | 20 |
+| `currency` | ISO currency code for all displayed amounts | "USD" |
+| `timezone` | IANA name; defines when "today" rolls over | "UTC" |
+| `participant` | display name (no GitHub account needed) | "KY" |
+| `participantEmail` | where the nudge email goes | — |
 
-- Daily rates are fixed amounts from `rates` (if `rates` is omitted, the success rate falls
-  back to `rewardTotal ÷ days` and partial to half). Changing rates, dates, or the bonus
-  mid-challenge re-prices every day, past and future — set the terms up front.
-- `participant` is a display name (it doesn't need to be a GitHub account).
-- `timezone` (IANA name, e.g. `Europe/Berlin`) defines what "today" means. The nudge hour
-  is the cron line in `.github/workflows/nudge.yml` (UTC).
-- Only repo collaborators can edit this file, so parameters are admin-only by construction.
+Changing rates, dates, or the bonus mid-challenge re-prices every day, past and future — set
+the terms up front. The one setting outside this file is the nudge **hour**: the cron line in
+`.github/workflows/nudge.yml` (UTC). Only repo collaborators can edit any of this, so
+parameters are admin-only by construction.
 
 ## Admin: creating the participant's report code
 
