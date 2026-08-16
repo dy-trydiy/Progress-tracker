@@ -63,7 +63,7 @@ jobs:
               owner, repo,
               title: `⏰ Check-in reminder — ${today}`,
               labels: ["daily-nudge"],
-              assignees: [config.participant],
+              assignees: [owner],
               body: [
                 `Today's result for **${config.goalName}** hasn't been reported yet.`,
                 "",

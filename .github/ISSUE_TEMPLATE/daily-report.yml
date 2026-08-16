@@ -13,8 +13,9 @@ body:
     attributes:
       label: How did it go?
       options:
-        - "✅ Success — stayed gluten-free"
-        - "❌ Slip — had gluten"
+        - "✅ Success — fully on track (full reward)"
+        - "🌓 Partial — reduced reward"
+        - "❌ Slip — off track (no reward)"
     validations:
       required: true
   - type: input
