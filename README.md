@@ -1,10 +1,24 @@
 # Progress Tracker
 
-A reward-based habit tracker: set a goal (e.g. *six months gluten-free*), a total reward
-(e.g. **$2,000**), and self-report every day. Every clean day earns an equal share of the
-reward; a slip day simply isn't counted — no penalties, no resets. Runs entirely on GitHub
+A reward-based habit tracker: set a goal, a total reward (e.g. **$2,000**), and self-report
+every day. Runs entirely on GitHub
 (Issues + Actions + Pages), with a shareable dashboard where the participant reports from
 the browser — **no GitHub account needed for them**.
+
+## Scoring
+
+Each day is reported as one of three results:
+
+| Result | Reward | Bonus streak |
+|---|---|---|
+| ✅ **Success** — fully on track | full day's share (`rewardTotal ÷ days`) | extends it |
+| 🌓 **Partial** — half credit | 50% of the day's share | resets it |
+| ❌ **Slip** — off track | nothing (and no penalty) | resets it |
+
+**Streak bonus**: every block of consecutive full successes (default **5 days**) pays a bonus
+of **20%** of that block's base reward on top — a 10-day run earns two bonuses. Partial days,
+slips, and unreported days all reset the streak. Configure via `bonus` in `data/config.json`:
+`{ "streakDays": 5, "percent": 20 }`.
 
 ## Roles
 
@@ -41,8 +55,9 @@ Edit [`data/config.json`](data/config.json) (the dashboard footer has a direct
 }
 ```
 
-- Per-day reward = `rewardTotal ÷ number of days in the window`. Changing dates or the
-  reward mid-challenge re-prices every day, past and future — set the terms up front.
+- Per-day reward = `rewardTotal ÷ number of days in the window`. Changing dates, the
+  reward, or the bonus mid-challenge re-prices every day, past and future — set the terms up front.
+- `participant` is a display name (it doesn't need to be a GitHub account).
 - `timezone` (IANA name, e.g. `Europe/Berlin`) defines what "today" means. The nudge hour
   is the cron line in `.github/workflows/nudge.yml` (UTC).
 - Only repo collaborators can edit this file, so parameters are admin-only by construction.
@@ -81,7 +96,7 @@ can pass the reminder along yourself.
 
 ## Daily use (participant)
 
-Open the dashboard, tap **✅ Gluten-free** or **❌ Had gluten**, optionally add a note, and
+Open the dashboard, tap **✅ Success**, **🌓 Partial**, or **❌ Slip**, optionally add a note, and
 **Record this day**. The date field lets you backfill a missed day; re-recording a date
 corrects it. The page confirms and refreshes itself when the data lands (a minute or two).
 

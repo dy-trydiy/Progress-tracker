@@ -62,7 +62,8 @@ const sections = parseSections(body);
 
 const statusRaw = sections["How did it go?"] ?? "";
 let status;
-if (/success/i.test(statusRaw)) status = "success";
+if (/partial/i.test(statusRaw)) status = "partial";
+else if (/success/i.test(statusRaw)) status = "success";
 else if (/slip/i.test(statusRaw)) status = "slip";
 else fail("Couldn't find a **How did it go?** answer in the form. Please use the *Daily check-in* issue template.");
 
@@ -88,41 +89,58 @@ log.entries[date] = {
 };
 writeFileSync(LOG_PATH, JSON.stringify(log, null, 2) + "\n");
 
-// Build the confirmation summary.
+// Build the confirmation summary. Walk the challenge window day by day so
+// streaks and bonuses match the dashboard exactly: success = full reward and
+// extends the streak; partial = half reward, resets the streak; slip or a
+// missed past day = nothing, resets the streak. Every completed block of
+// `bonus.streakDays` consecutive successes pays `bonus.percent`% of that
+// block's base reward.
 const totalDays = dayCount(config.startDate, config.endDate);
 const perDay = config.rewardTotal / totalDays;
-const entries = Object.entries(log.entries);
-const clean = entries.filter(([, e]) => e.status === "success").length;
-const slips = entries.filter(([, e]) => e.status === "slip").length;
-const earned = clean * perDay;
+const bonusDays = config.bonus?.streakDays || 5;
+const bonusPct = config.bonus?.percent || 20;
+const bonusBlock = (bonusDays * perDay * bonusPct) / 100;
 
-// Current streak of consecutive clean days ending at the latest reported day.
-let streak = 0;
-const dates = entries.map(([d]) => d).sort();
-if (dates.length) {
-  let cursor = dates[dates.length - 1];
-  while (log.entries[cursor]?.status === "success") {
-    streak += 1;
-    const prev = new Date(Date.parse(`${cursor}T00:00:00Z`) - 86400000);
-    cursor = prev.toISOString().slice(0, 10);
-  }
+let clean = 0, partialCt = 0, slips = 0, base = 0, bonusEarned = 0, run = 0;
+const startMs = Date.parse(`${config.startDate}T00:00:00Z`);
+const stopMs = Math.min(Date.parse(`${today}T00:00:00Z`), Date.parse(`${config.endDate}T00:00:00Z`));
+for (let ms = startMs; ms <= stopMs; ms += 86400000) {
+  const d = new Date(ms).toISOString().slice(0, 10);
+  const e = log.entries[d];
+  if (!e) { if (d !== today) run = 0; continue; }
+  if (e.status === "success") {
+    clean++; base += perDay; run++;
+    if (run % bonusDays === 0) bonusEarned += bonusBlock;
+  } else if (e.status === "partial") { partialCt++; base += perDay / 2; run = 0; }
+  else { slips++; run = 0; }
 }
+const earned = base + bonusEarned;
+const streak = run;
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: config.currency || "USD" }).format(n);
 
-const verdict =
-  status === "success"
-    ? `**${date} recorded as a clean day** — ${money(perDay)} added. 🎉`
-    : `**${date} recorded as a slip** — no reward for this day, and that's the whole consequence. Tomorrow is a fresh ${money(perDay)}.`;
+let verdict;
+if (status === "success") {
+  verdict = `**${date} recorded as a full success** — ${money(perDay)} added. 🎉`;
+  if (streak > 0 && streak % bonusDays === 0) {
+    verdict += ` And that completes a ${streak}-day streak: **+${money(bonusBlock)} bonus!** 🏆`;
+  } else if (streak > 0) {
+    verdict += ` Streak: ${streak} day${streak === 1 ? "" : "s"} — ${bonusDays - (streak % bonusDays)} more to a +${money(bonusBlock)} bonus.`;
+  }
+} else if (status === "partial") {
+  verdict = `**${date} recorded as a partial day** — half reward, ${money(perDay / 2)} added. The bonus streak resets, but the money still counts.`;
+} else {
+  verdict = `**${date} recorded as a slip** — no reward for this day, and that's the whole consequence. Tomorrow is a fresh ${money(perDay)}.`;
+}
 
 const summary = [
   verdict,
   ...(previous ? [`_(This replaces the earlier report for ${date}: ${previous.status}.)_`] : []),
   "",
-  `| Earned so far | Clean days | Slips | Current streak |`,
-  `|---|---|---|---|`,
-  `| **${money(earned)}** of ${money(config.rewardTotal)} | ${clean} | ${slips} | ${streak} day${streak === 1 ? "" : "s"} |`,
+  `| Earned so far | Streak bonus | ✅ Full | 🌓 Partial | ❌ Slips | Streak |`,
+  `|---|---|---|---|---|---|`,
+  `| **${money(earned)}** of ${money(config.rewardTotal)} | ${money(bonusEarned)} | ${clean} | ${partialCt} | ${slips} | ${streak}d |`,
 ].join("\n");
 
 setOutput("ok", "true");
