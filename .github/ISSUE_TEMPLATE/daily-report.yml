@@ -14,7 +14,7 @@ body:
       label: How did it go?
       options:
         - "✅ Success — fully on track (full reward)"
-        - "🌓 Partial — half credit"
+        - "🌓 Partial — reduced reward"
         - "❌ Slip — off track (no reward)"
     validations:
       required: true

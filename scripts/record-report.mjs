@@ -96,7 +96,9 @@ writeFileSync(LOG_PATH, JSON.stringify(log, null, 2) + "\n");
 // `bonus.streakDays` consecutive successes pays `bonus.percent`% of that
 // block's base reward.
 const totalDays = dayCount(config.startDate, config.endDate);
-const perDay = config.rewardTotal / totalDays;
+const rates = config.rates || {};
+const perDay = rates.success ?? config.rewardTotal / totalDays;
+const perPartial = rates.partial ?? perDay / 2;
 const bonusDays = config.bonus?.streakDays || 5;
 const bonusPct = config.bonus?.percent || 20;
 const bonusBlock = (bonusDays * perDay * bonusPct) / 100;
@@ -111,7 +113,7 @@ for (let ms = startMs; ms <= stopMs; ms += 86400000) {
   if (e.status === "success") {
     clean++; base += perDay; run++;
     if (run % bonusDays === 0) bonusEarned += bonusBlock;
-  } else if (e.status === "partial") { partialCt++; base += perDay / 2; run = 0; }
+  } else if (e.status === "partial") { partialCt++; base += perPartial; run = 0; }
   else { slips++; run = 0; }
 }
 const earned = base + bonusEarned;
@@ -129,7 +131,7 @@ if (status === "success") {
     verdict += ` Streak: ${streak} day${streak === 1 ? "" : "s"} — ${bonusDays - (streak % bonusDays)} more to a +${money(bonusBlock)} bonus.`;
   }
 } else if (status === "partial") {
-  verdict = `**${date} recorded as a partial day** — half reward, ${money(perDay / 2)} added. The bonus streak resets, but the money still counts.`;
+  verdict = `**${date} recorded as a partial day** — ${money(perPartial)} added. The bonus streak resets, but the money still counts.`;
 } else {
   verdict = `**${date} recorded as a slip** — no reward for this day, and that's the whole consequence. Tomorrow is a fresh ${money(perDay)}.`;
 }

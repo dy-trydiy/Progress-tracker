@@ -9,5 +9,13 @@
   "currency": "USD",
   "timezone": "UTC",
   "participantEmail": "newyourkate@gmail.com",
-  "bonus": { "streakDays": 5, "percent": 20 }
+  "bonus": {
+    "streakDays": 5,
+    "percent": 20
+  },
+  "rates": {
+    "success": 10,
+    "partial": 3,
+    "slip": 0
+  }
 }

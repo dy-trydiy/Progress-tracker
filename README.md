@@ -11,12 +11,17 @@ Each day is reported as one of three results:
 
 | Result | Reward | Bonus streak |
 |---|---|---|
-| ✅ **Success** — fully on track | full day's share (`rewardTotal ÷ days`) | extends it |
-| 🌓 **Partial** — half credit | 50% of the day's share | resets it |
+| ✅ **Success** — fully on track | `rates.success` per day (e.g. $10) | extends it |
+| 🌓 **Partial** — reduced reward | `rates.partial` per day (e.g. $3) | resets it |
 | ❌ **Slip** — off track | nothing (and no penalty) | resets it |
 
+`rewardTotal` is the **goal for the period** — the number the progress bar and hero figure
+measure against. With fixed daily rates, a perfect run (plus bonuses) can pay more than the
+goal, so the goal stays reachable even with some slips.
+
 **Streak bonus**: every block of consecutive full successes (default **5 days**) pays a bonus
-of **20%** of that block's base reward on top — a 10-day run earns two bonuses. Partial days,
+of **20%** of that block's success-rate reward on top (5 × $10 × 20% = +$10) — a 10-day run
+earns two bonuses. Partial days,
 slips, and unreported days all reset the streak. Configure via `bonus` in `data/config.json`:
 `{ "streakDays": 5, "percent": 20 }`.
 
@@ -48,6 +53,7 @@ Edit [`data/config.json`](data/config.json) (the dashboard footer has a direct
   "startDate": "2026-08-16",
   "endDate": "2027-02-15",
   "rewardTotal": 2000,
+  "rates": { "success": 10, "partial": 3, "slip": 0 },
   "currency": "USD",
   "timezone": "UTC",
   "participant": "dy-trydiy",
@@ -55,8 +61,9 @@ Edit [`data/config.json`](data/config.json) (the dashboard footer has a direct
 }
 ```
 
-- Per-day reward = `rewardTotal ÷ number of days in the window`. Changing dates, the
-  reward, or the bonus mid-challenge re-prices every day, past and future — set the terms up front.
+- Daily rates are fixed amounts from `rates` (if `rates` is omitted, the success rate falls
+  back to `rewardTotal ÷ days` and partial to half). Changing rates, dates, or the bonus
+  mid-challenge re-prices every day, past and future — set the terms up front.
 - `participant` is a display name (it doesn't need to be a GitHub account).
 - `timezone` (IANA name, e.g. `Europe/Berlin`) defines what "today" means. The nudge hour
   is the cron line in `.github/workflows/nudge.yml` (UTC).

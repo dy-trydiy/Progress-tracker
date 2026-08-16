@@ -308,7 +308,9 @@
 
   const startMs = parse(config.startDate), endMs = parse(config.endDate);
   const totalDays = Math.round((endMs - startMs) / DAY) + 1;
-  const perDay = config.rewardTotal / totalDays;
+  const rates = config.rates || {};
+  const perDay = rates.success ?? config.rewardTotal / totalDays;
+  const perPartial = rates.partial ?? perDay / 2;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: config.timezone || "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   const todayMs = Math.min(Math.max(parse(today), startMs - DAY), endMs);
   const started = parse(today) >= startMs;
@@ -335,7 +337,7 @@
       clean++; baseEarned += perDay; run++;
       bestStreak = Math.max(bestStreak, run);
       if (run % bonusDays === 0) bonusEarned += bonusBlock;
-    } else if (e.status === "partial") { partialCt++; baseEarned += perDay / 2; run = 0; }
+    } else if (e.status === "partial") { partialCt++; baseEarned += perPartial; run = 0; }
     else { slips++; run = 0; }
   }
   const currentStreak = run;
@@ -355,7 +357,7 @@
 
   // Hero + meter
   $("hero-earned").textContent = money(earned);
-  $("hero-of").textContent = "earned of " + money(config.rewardTotal) + " · " + money(perDay, 2) + " per full success" +
+  $("hero-of").textContent = "toward the " + money(config.rewardTotal) + " goal · " + money(perDay, 2) + " per success" +
     (bonusEarned > 0 ? " · incl. " + money(bonusEarned, 2) + " streak bonus" : "");
   const pct = Math.min(100, (earned / config.rewardTotal) * 100);
   $("meter-fill").style.width = pct.toFixed(2) + "%";
@@ -380,7 +382,7 @@
   const toNextBonus = bonusDays - (currentStreak % bonusDays);
   const tiles = [
     { label: "Full successes", value: String(clean), hint: "of " + elapsed + " day" + (elapsed === 1 ? "" : "s") + " so far" },
-    { label: "Partial days", value: String(partialCt), hint: "half reward each" },
+    { label: "Partial days", value: String(partialCt), hint: money(perPartial, 2) + " each" },
     { label: "Slips", value: String(slips), hint: "no reward, no penalty" },
     { label: "Current streak", value: currentStreak + "d", hint: "bonus in " + toNextBonus + "d · best " + bestStreak + "d" },
     { label: "Streak bonus", value: money(bonusEarned), hint: "+" + money(bonusBlock, 2) + " per " + bonusDays + " straight ✅" },
@@ -406,11 +408,14 @@
   };
   if (started && !finished) {
     $("checkin-card").style.display = "block";
+    $("ci-btn-success").querySelector("small").textContent = "+" + money(perDay, 2) + "/day";
+    $("ci-btn-partial").querySelector("small").textContent = "+" + money(perPartial, 2) + "/day";
+    $("ci-btn-slip").querySelector("small").textContent = money(0, 2);
     const todayEntry = entries[today];
     let status = null;
     const statusLabel = (st) =>
       st === "success" ? "✓ full success (+" + money(perDay, 2) + ")"
-      : st === "partial" ? "½ partial (+" + money(perDay / 2, 2) + ")"
+      : st === "partial" ? "½ partial (+" + money(perPartial, 2) + ")"
       : "✗ slip";
     const refreshSub = () => {
       $("ci-sub").textContent = todayEntry
@@ -459,7 +464,7 @@
       const note = $("ci-note").value.trim();
       const body = "### How did it go?\n\n" +
         (status === "success" ? "✅ Success — fully on track (full reward)"
-          : status === "partial" ? "🌓 Partial — half credit"
+          : status === "partial" ? "🌓 Partial — reduced reward"
           : "❌ Slip — off track (no reward)") +
         "\n\n### Date\n\n" + date + "\n\n### Note (optional)\n\n" + (note || "_No response_");
       $("ci-submit").disabled = true;
@@ -557,7 +562,7 @@
         rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "✓ Full success · +" + money(perDay, 2) }];
       } else if (e && e.status === "partial") {
         cell.classList.add("part"); cell.textContent = "½";
-        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "½ Partial · +" + money(perDay / 2, 2) }];
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "½ Partial · +" + money(perPartial, 2) }];
       } else if (e) {
         cell.classList.add("slip"); cell.textContent = "✗";
         rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "✗ Slip · not counted" }];
@@ -600,7 +605,7 @@
       if (e && e.status === "success") {
         cum += perDay; chRun++;
         if (chRun % bonusDays === 0) cum += bonusBlock;
-      } else if (e && e.status === "partial") { cum += perDay / 2; chRun = 0; }
+      } else if (e && e.status === "partial") { cum += perPartial; chRun = 0; }
       else if (d !== today) chRun = 0;
       actual.push({ ms, v: cum });
     }
@@ -613,7 +618,7 @@
     const M = { top: 12, right: 16, bottom: 24, left: 52 };
     const iw = W - M.left - M.right, ih = H - M.top - M.bottom;
     const x = (ms) => M.left + ((ms - startMs) / (endMs - startMs)) * iw;
-    const yMax = Math.ceil(potentialAt(totalDays) / 100) * 100;
+    const yMax = Math.ceil(Math.max(potentialAt(totalDays), config.rewardTotal) / 100) * 100;
     const y = (v) => M.top + ih - (v / yMax) * ih;
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
@@ -639,6 +644,12 @@
       svg.appendChild(t);
       mc = new Date(Date.UTC(mc.getUTCFullYear(), mc.getUTCMonth() + 1, 1));
     }
+    // Goal reference
+    const gy = y(config.rewardTotal);
+    svg.appendChild(el("line", { x1: M.left, x2: W - M.right, y1: gy, y2: gy, stroke: css("--baseline"), "stroke-width": 1 }));
+    const goalLabel = el("text", { x: W - M.right, y: gy - 5, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") });
+    goalLabel.textContent = "Goal " + money(config.rewardTotal);
+    svg.appendChild(goalLabel);
     // Baseline
     svg.appendChild(el("line", { x1: M.left, x2: W - M.right, y1: y(0), y2: y(0), stroke: css("--baseline"), "stroke-width": 1 }));
     // Potential ceiling (context, de-emphasized)
@@ -692,7 +703,7 @@
     const cells = [
       { text: dstr },
       { text: e.status === "success" ? "✓ Success" : e.status === "partial" ? "½ Partial" : "✗ Slip" },
-      { text: e.status === "success" ? "+" + money(perDay, 2) : e.status === "partial" ? "+" + money(perDay / 2, 2) : money(0, 2),
+      { text: e.status === "success" ? "+" + money(perDay, 2) : e.status === "partial" ? "+" + money(perPartial, 2) : money(0, 2),
         cls: e.status === "slip" ? "" : "earn-pos" },
       { text: e.note || "" },
     ];
@@ -705,9 +716,10 @@
     tr.appendChild(td); tbody.appendChild(tr);
   }
 
-  $("footer").textContent = "Each full success earns " + money(perDay, 2) + " (" + money(config.rewardTotal) + " ÷ " + totalDays +
-    " days); a partial day earns half; a slip earns nothing but costs nothing. Every " + bonusDays +
-    " consecutive full successes add a " + bonusPct + "% bonus (+" + money(bonusBlock, 2) + "). Share this page's link with anyone who should follow along. ";
+  $("footer").textContent = "A success pays " + money(perDay, 2) + " a day, a partial day " + money(perPartial, 2) +
+    ", a slip nothing (and costs nothing). Every " + bonusDays + " consecutive successes add a " + bonusPct +
+    "% bonus (+" + money(bonusBlock, 2) + "). Goal for the period: " + money(config.rewardTotal) +
+    ". Share this page's link with anyone who should follow along. ";
   const adminLink = document.createElement("a");
   adminLink.href = "https://github.com/" + config.repo + "/edit/main/data/config.json";
   adminLink.textContent = "Admin: challenge settings";
