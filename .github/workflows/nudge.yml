@@ -2,8 +2,8 @@ name: Daily check-in nudge
 
 on:
   schedule:
-    # 18:00 UTC daily — adjust to your evening. GitHub notifies you (email/app)
-    # about the reminder issue this creates.
+    # 18:00 UTC daily — adjust to the participant's evening. Also sends an email
+    # to config.participantEmail if the MAIL_USERNAME/MAIL_PASSWORD secrets are set.
     - cron: "0 18 * * *"
   workflow_dispatch:
 
@@ -19,7 +19,8 @@ jobs:
         with:
           ref: main
 
-      - name: Create a reminder if today isn't reported yet
+      - name: Check today and open a reminder issue
+        id: check
         uses: actions/github-script@v7
         with:
           script: |
@@ -33,6 +34,12 @@ jobs:
               year: "numeric", month: "2-digit", day: "2-digit",
             }).format(new Date());
 
+            core.setOutput("nudge", "false");
+            core.setOutput("today", today);
+            core.setOutput("email", config.participantEmail || "");
+            core.setOutput("goal", config.goalName || "the challenge");
+            core.setOutput("dashboard", `https://${owner.toLowerCase()}.github.io/${repo}/`);
+
             if (today < config.startDate || today > config.endDate) {
               core.info(`${today} is outside the challenge window — no nudge.`);
               return;
@@ -41,16 +48,16 @@ jobs:
               core.info(`${today} is already reported — no nudge.`);
               return;
             }
+            core.setOutput("nudge", "true");
 
             const open = await github.rest.issues.listForRepo({
               owner, repo, state: "open", labels: "daily-nudge", per_page: 100,
             });
             if (open.data.some((issue) => issue.title.includes(today))) {
-              core.info("Reminder already open — no duplicate.");
+              core.info("Reminder issue already open — no duplicate.");
               return;
             }
 
-            const reportUrl = `https://github.com/${owner}/${repo}/issues/new?template=daily-report.yml`;
             const dashboardUrl = `https://${owner.toLowerCase()}.github.io/${repo}/`;
             await github.rest.issues.create({
               owner, repo,
@@ -58,10 +65,31 @@ jobs:
               labels: ["daily-nudge"],
               assignees: [config.participant],
               body: [
-                `Hey @${config.participant} — today's result for **${config.goalName}** hasn't been reported yet.`,
+                `Today's result for **${config.goalName}** hasn't been reported yet.`,
                 "",
-                `👉 **[Report today's check-in](${reportUrl})** (takes 10 seconds)`,
+                `👉 The participant reports right on the dashboard: ${dashboardUrl}`,
                 "",
-                `This reminder closes itself as soon as the check-in is recorded. Dashboard: ${dashboardUrl}`,
+                "This reminder closes itself as soon as the check-in is recorded.",
               ].join("\n"),
             });
+
+      - name: Email the participant
+        # Runs only when today is unreported, a participant email is configured,
+        # and the SMTP secrets exist (e.g. Gmail address + app password).
+        if: steps.check.outputs.nudge == 'true' && steps.check.outputs.email != '' && env.MAIL_USERNAME != ''
+        uses: dawidd6/action-send-mail@v3
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: Progress Tracker
+          to: ${{ steps.check.outputs.email }}
+          subject: "⏰ ${{ steps.check.outputs.goal }} — don't forget today's check-in"
+          html_body: |
+            <p>Today (${{ steps.check.outputs.today }}) hasn't been reported yet.</p>
+            <p><a href="${{ steps.check.outputs.dashboard }}"><strong>Open the dashboard and log it</strong></a> — it takes ten seconds.</p>
+            <p>Every clean day counts toward the reward. This email stops once today is recorded.</p>
