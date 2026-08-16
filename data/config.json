@@ -7,5 +7,6 @@
   "endDate": "2027-02-15",
   "rewardTotal": 2000,
   "currency": "USD",
-  "timezone": "UTC"
+  "timezone": "UTC",
+  "participantEmail": ""
 }

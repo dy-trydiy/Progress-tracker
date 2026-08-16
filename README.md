@@ -2,33 +2,31 @@
 
 A reward-based habit tracker: set a goal (e.g. *six months gluten-free*), a total reward
 (e.g. **$2,000**), and self-report every day. Every clean day earns an equal share of the
-reward; a slip day simply isn't counted — no penalties, no resets. The whole thing runs on
-GitHub: Issues for check-ins, Actions for the nudge and data updates, Pages for a shareable
-dashboard.
+reward; a slip day simply isn't counted — no penalties, no resets. Runs entirely on GitHub
+(Issues + Actions + Pages), with a shareable dashboard where the participant reports from
+the browser — **no GitHub account needed for them**.
+
+## Roles
+
+| Role | Who | Can do |
+|---|---|---|
+| **Administrator** | The repo owner (and collaborators) | Change the challenge parameters (`data/config.json`: name, dates, reward, timezone, participant email), manage the report code, see everything. GitHub's own permissions enforce this — nobody else can touch settings. |
+| **Participant** | Whoever you share the dashboard link with | See the dashboard and report ✅ success / ❌ slip (with an optional note) right on the page, using a report code you give them once. Nothing else. |
 
 ## How it works
 
 | Piece | What it does |
 |---|---|
-| **Dashboard** (`index.html`) | Live progress page on GitHub Pages: money earned, streaks, a per-day calendar, an earnings chart. Share its URL with anyone. |
-| **Daily check-in** (issue form) | You open a [pre-filled issue](../../issues/new?template=daily-report.yml), pick ✅ Success or ❌ Slip, optionally add a note, and submit. Takes ~10 seconds, works great from the GitHub mobile app. |
-| **Recorder** (`record-report.yml`) | An Action parses the check-in, updates `data/log.json`, replies with your running totals, closes the issue, and closes that day's reminder. |
-| **Nudge** (`nudge.yml`) | A scheduled Action checks every evening whether today was reported. If not, it opens a reminder issue assigned to you — GitHub notifies you by email/app push. |
+| **Dashboard** (`index.html`, GitHub Pages) | Live progress: money earned, streaks, per-day calendar, earnings chart — plus the check-in panel. |
+| **In-page check-in** | The participant picks ✅/❌; the page files a `daily-report` issue via the GitHub API using the report code. The code is stored only in their browser, never in this repo or the page source. |
+| **Recorder** (`record-report.yml`) | Parses the check-in, updates `data/log.json`, comments the running totals, closes the issue and that day's reminder. Re-reporting a date corrects it (newest wins). Only issues authored by the owner/collaborators are accepted — the report code is the admin's token, so participant reports qualify. |
+| **Nudge** (`nudge.yml`) | Every evening (18:00 UTC by default), if today is unreported: emails the participant (optional, see below) and opens a reminder issue assigned to the admin. Auto-closes once the check-in lands. |
 | **Deploy** (`pages.yml`) | Every data update redeploys the dashboard automatically. |
 
-## One-time setup
+## Admin: changing the challenge parameters
 
-1. **Enable GitHub Pages**: repo **Settings → Pages → Source: GitHub Actions**.
-2. **Merge/push this to `main`** — the first deploy runs automatically. The dashboard lives at
-   `https://<owner>.github.io/Progress-tracker/`.
-3. **Turn on notifications** for this repo (Watch → All activity, or at least Issues) so the
-   nudge reaches your phone/inbox.
-4. Optionally run the **Daily check-in nudge** workflow once manually (Actions tab →
-   *Daily check-in nudge* → Run workflow) to see a reminder appear.
-
-## Configure your goal
-
-Everything lives in [`data/config.json`](data/config.json):
+Edit [`data/config.json`](data/config.json) (the dashboard footer has a direct
+"Admin: challenge settings" link):
 
 ```json
 {
@@ -38,25 +36,59 @@ Everything lives in [`data/config.json`](data/config.json):
   "rewardTotal": 2000,
   "currency": "USD",
   "timezone": "UTC",
-  "participant": "dy-trydiy"
+  "participant": "dy-trydiy",
+  "participantEmail": ""
 }
 ```
 
-- The per-day reward is `rewardTotal ÷ number of days` — with the dates above, **$10.87/day**.
-- `timezone` (an IANA name like `Europe/Berlin`) controls what "today" means for check-ins
-  and nudges. Also adjust the cron time in `.github/workflows/nudge.yml` (it's in UTC) to
-  your preferred evening reminder hour.
-- `participant` is the GitHub username that gets assigned the reminder issues.
+- Per-day reward = `rewardTotal ÷ number of days in the window`. Changing dates or the
+  reward mid-challenge re-prices every day, past and future — set the terms up front.
+- `timezone` (IANA name, e.g. `Europe/Berlin`) defines what "today" means. The nudge hour
+  is the cron line in `.github/workflows/nudge.yml` (UTC).
+- Only repo collaborators can edit this file, so parameters are admin-only by construction.
 
-## Daily use
+## Admin: creating the participant's report code
 
-- **Report**: open [New daily check-in](../../issues/new?template=daily-report.yml), pick the
-  result, submit. Leave the date blank for today, or set `YYYY-MM-DD` to backfill a missed day.
-- **Fix a mistake**: submit the form again for the same date — the newer report wins. You can
-  also edit the body of a previous check-in issue; it will be re-processed.
-- Only the repo owner and collaborators can record check-ins; reports from anyone else are ignored.
+The report code is a **fine-grained personal access token** that can do exactly one thing:
+write issues in this repo.
 
-## Sharing
+1. GitHub → your avatar → **Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token**.
+2. Name it `progress-tracker-report`, set expiration past the challenge end date.
+3. **Repository access**: *Only select repositories* → this repo.
+4. **Permissions → Repository permissions → Issues: Read and write**. Nothing else.
+5. Generate, copy the token, and send it to the participant over a private channel
+   (not in a public place — anyone holding it could file issues in this repo).
+6. The participant opens the dashboard, and the check-in panel asks for the code once;
+   it's remembered in their browser (there's a "forget code" link to remove it).
 
-The dashboard is a public read-only page — send the Pages URL to whoever is holding the reward
-(or cheering you on). They don't need a GitHub account.
+Lost or leaked? Revoke the token in the same settings screen and issue a new one —
+nothing else changes.
+
+## Admin: email nudge for the participant (optional)
+
+The participant has no GitHub account, so reminders reach them by email:
+
+1. Set `participantEmail` in `data/config.json`.
+2. Repo **Settings → Secrets and variables → Actions → New repository secret**, add:
+   - `MAIL_USERNAME` — a Gmail address to send from (yours works),
+   - `MAIL_PASSWORD` — an [app password](https://myaccount.google.com/apppasswords) for it
+     (requires 2-step verification; a normal password won't work).
+3. Done — every evening an unreported day triggers an email with a dashboard link.
+
+Without these secrets the nudge still opens a reminder issue assigned to the admin, so you
+can pass the reminder along yourself.
+
+## Daily use (participant)
+
+Open the dashboard, tap **✅ Gluten-free** or **❌ Had gluten**, optionally add a note, and
+**Record this day**. The date field lets you backfill a missed day; re-recording a date
+corrects it. The page confirms and refreshes itself when the data lands (a minute or two).
+
+Dashboard: `https://<owner>.github.io/Progress-tracker/`
+
+## One-time setup (already done for this repo)
+
+1. Settings → Pages → Source: **GitHub Actions**.
+2. Push to `main` → the dashboard deploys automatically.
+3. Admin: Watch the repo (Issues) to get reminder notifications.

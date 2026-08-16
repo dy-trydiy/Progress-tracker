@@ -99,6 +99,30 @@
   h2 { font-size: 16px; margin: 0 0 4px; }
   .card-sub { color: var(--text-muted); font-size: 13px; margin: 0 0 14px; }
 
+  /* Check-in panel */
+  .ci-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+  .ci-btn {
+    flex: 1 1 180px; padding: 14px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--text-primary);
+    font-family: inherit;
+  }
+  .ci-btn:hover { border-color: var(--baseline); }
+  .ci-btn.sel.ci-good { background: var(--good); border-color: var(--good); color: #fff; }
+  .ci-btn.sel.ci-bad  { background: var(--critical); border-color: var(--critical); color: #fff; }
+  .ci-input {
+    padding: 9px 12px; font-size: 14px; font-family: inherit; color: var(--text-primary);
+    background: var(--page); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .ci-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #ci-note { flex: 1 1 240px; }
+  .btn[disabled] { opacity: 0.45; cursor: default; pointer-events: none; }
+  button.btn { border: none; cursor: pointer; font-family: inherit; }
+  .ci-msg { font-size: 13px; color: var(--text-secondary); }
+  .ci-msg.err { color: var(--critical); }
+  .ci-msg.ok { color: var(--good-text); font-weight: 600; }
+  .ci-small { font-size: 12px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-block; margin-top: 12px; }
+  label.ci-datelabel { font-size: 13px; color: var(--text-secondary); display: inline-flex; gap: 8px; align-items: center; }
+
   /* Calendar */
   .months { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 20px 24px; }
   .month h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 6px; }
@@ -168,6 +192,34 @@
       </div>
     </header>
     <p class="subtitle" id="goal-desc"></p>
+
+    <section class="card" id="checkin-card" style="display:none">
+      <h2 id="ci-title">Today’s check-in</h2>
+      <p class="card-sub" id="ci-sub"></p>
+      <div id="ci-form" style="display:none">
+        <div class="ci-row">
+          <button type="button" class="ci-btn ci-good" id="ci-btn-success">✅ Gluten-free</button>
+          <button type="button" class="ci-btn ci-bad" id="ci-btn-slip">❌ Had gluten</button>
+        </div>
+        <div class="ci-row">
+          <label class="ci-datelabel">For date <input type="date" id="ci-date" class="ci-input"></label>
+          <input type="text" id="ci-note" class="ci-input" placeholder="Note (optional)" maxlength="280">
+        </div>
+        <div class="ci-row">
+          <button type="button" class="btn" id="ci-submit" disabled>Record this day</button>
+          <span class="ci-msg" id="ci-msg" role="status"></span>
+        </div>
+        <span class="ci-small" id="ci-forget">Forget report code on this device</span>
+      </div>
+      <div id="ci-code" style="display:none">
+        <p class="card-sub" style="margin-bottom:0">Reporting from this page needs a one-time <strong>report code</strong> — ask the challenge admin for it. It's saved only in this browser.</p>
+        <div class="ci-row">
+          <input type="password" id="ci-code-input" class="ci-input" placeholder="Report code" style="flex:1 1 240px" autocomplete="off">
+          <button type="button" class="btn" id="ci-code-save">Save code</button>
+          <span class="ci-msg" id="ci-code-msg"></span>
+        </div>
+      </div>
+    </section>
 
     <section class="card">
       <div class="hero-row">
@@ -279,7 +331,12 @@
   $("goal-name").textContent = config.goalName;
   $("goal-desc").textContent = config.description || "";
   $("range-chip").textContent = fmtDate(config.startDate).replace(/^[A-Za-z]+, /, "") + " → " + fmtDate(config.endDate).replace(/^[A-Za-z]+, /, "");
-  $("report-btn").href = "https://github.com/" + config.repo + "/issues/new?template=daily-report.yml";
+  if (started && !finished) {
+    $("report-btn").href = "#checkin-card";
+    $("report-btn").removeAttribute("target");
+  } else {
+    $("report-btn").style.display = "none";
+  }
 
   // Hero + meter
   $("hero-earned").textContent = money(earned);
@@ -307,6 +364,114 @@
       const d = document.createElement("div"); d.className = cls; d.textContent = txt; el.appendChild(d);
     }
     $("kpis").appendChild(el);
+  }
+
+  // Check-in panel — reports via the GitHub API using a report code (a repo-scoped
+  // token the admin hands out privately; stored only in this browser).
+  const CODE_KEY = "pt_report_code:" + config.repo;
+  const store = {
+    get() { try { return localStorage.getItem(CODE_KEY) || ""; } catch { return ""; } },
+    set(v) { try { localStorage.setItem(CODE_KEY, v); } catch {} },
+    clear() { try { localStorage.removeItem(CODE_KEY); } catch {} },
+  };
+  if (started && !finished) {
+    $("checkin-card").style.display = "block";
+    const todayEntry = entries[today];
+    let status = null;
+    const refreshSub = () => {
+      $("ci-sub").textContent = todayEntry
+        ? "Today is recorded as " + (todayEntry.status === "success" ? "✓ clean (+" + money(perDay, 2) + ")" : "✗ slip") + ". You can re-report below to correct it."
+        : "Not reported yet — how did today go?";
+    };
+    refreshSub();
+    const showRightPanel = () => {
+      const hasCode = !!store.get();
+      $("ci-form").style.display = hasCode ? "block" : "none";
+      $("ci-code").style.display = hasCode ? "none" : "block";
+    };
+    showRightPanel();
+
+    const dateInput = $("ci-date");
+    dateInput.min = config.startDate;
+    dateInput.max = today;
+    dateInput.value = today;
+
+    const pick = (which) => {
+      status = which;
+      $("ci-btn-success").classList.toggle("sel", which === "success");
+      $("ci-btn-slip").classList.toggle("sel", which === "slip");
+      $("ci-submit").disabled = false;
+    };
+    $("ci-btn-success").addEventListener("click", () => pick("success"));
+    $("ci-btn-slip").addEventListener("click", () => pick("slip"));
+
+    $("ci-code-save").addEventListener("click", () => {
+      const v = $("ci-code-input").value.trim();
+      if (!v) { $("ci-code-msg").textContent = "Paste the code first."; $("ci-code-msg").className = "ci-msg err"; return; }
+      store.set(v);
+      $("ci-code-input").value = "";
+      showRightPanel();
+    });
+    $("ci-forget").addEventListener("click", () => { store.clear(); showRightPanel(); });
+
+    const msg = (text, cls) => { const m = $("ci-msg"); m.textContent = text; m.className = "ci-msg " + (cls || ""); };
+
+    $("ci-submit").addEventListener("click", async () => {
+      if (!status) return;
+      const date = dateInput.value;
+      if (!date || date < config.startDate || date > today) { msg("Pick a date between " + config.startDate + " and today.", "err"); return; }
+      const note = $("ci-note").value.trim();
+      const body = "### How did it go?\n\n" +
+        (status === "success" ? "✅ Success — stayed gluten-free" : "❌ Slip — had gluten") +
+        "\n\n### Date\n\n" + date + "\n\n### Note (optional)\n\n" + (note || "_No response_");
+      $("ci-submit").disabled = true;
+      msg("Sending…");
+      let res;
+      try {
+        res = await fetch("https://api.github.com/repos/" + config.repo + "/issues", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + store.get(),
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title: "Daily check-in (" + date + ")", body, labels: ["daily-report"] }),
+        });
+      } catch (e) {
+        msg("Network problem — check your connection and try again.", "err");
+        $("ci-submit").disabled = false;
+        return;
+      }
+      if (res.status === 401 || res.status === 403) {
+        store.clear();
+        showRightPanel();
+        $("ci-code-msg").textContent = "That code was rejected (expired or revoked?) — ask the admin for a fresh one.";
+        $("ci-code-msg").className = "ci-msg err";
+        $("ci-submit").disabled = false;
+        return;
+      }
+      if (!res.ok) {
+        msg("GitHub answered " + res.status + " — try again in a minute.", "err");
+        $("ci-submit").disabled = false;
+        return;
+      }
+      msg("Recorded! Updating the dashboard — this takes a minute or two…", "ok");
+      const submitted = Date.now();
+      const poll = setInterval(async () => {
+        try {
+          const fresh = await fetch("data/log.json?v=" + Date.now()).then((r) => r.json());
+          const e = fresh.entries && fresh.entries[date];
+          if (e && Date.parse(e.reportedAt) >= submitted - 60000 && e.status === status) {
+            clearInterval(poll);
+            location.reload();
+          }
+        } catch {}
+        if (Date.now() - submitted > 4 * 60000) {
+          clearInterval(poll);
+          msg("Recorded — it can take a few minutes to show up. Refresh the page later.", "ok");
+        }
+      }, 15000);
+    });
   }
 
   // Tooltip
@@ -492,7 +657,12 @@
   }
 
   $("footer").textContent = "Each clean day earns " + money(perDay, 2) + " (" + money(config.rewardTotal) + " ÷ " + totalDays +
-    " days). Slip days aren't punished — they just don't count. Share this page's link with anyone who should follow along.";
+    " days). Slip days aren't punished — they just don't count. Share this page's link with anyone who should follow along. ";
+  const adminLink = document.createElement("a");
+  adminLink.href = "https://github.com/" + config.repo + "/edit/main/data/config.json";
+  adminLink.textContent = "Admin: challenge settings";
+  adminLink.style.color = "var(--text-muted)";
+  $("footer").appendChild(adminLink);
 })();
 </script>
 </body>
