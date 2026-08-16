@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gluten-Free Challenge</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:          #f9f9f7;
+    --surface:       #fcfcfb;
+    --text-primary:  #0b0b0b;
+    --text-secondary:#52514e;
+    --text-muted:    #898781;
+    --grid:          #e1e0d9;
+    --baseline:      #c3c2b7;
+    --border:        rgba(11,11,11,0.10);
+    --accent:        #2a78d6;
+    --accent-track:  #cde2fb;
+    --good:          #0ca30c;
+    --good-text:     #006300;
+    --critical:      #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:          #0d0d0d;
+      --surface:       #1a1a19;
+      --text-primary:  #ffffff;
+      --text-secondary:#c3c2b7;
+      --text-muted:    #898781;
+      --grid:          #2c2c2a;
+      --baseline:      #383835;
+      --border:        rgba(255,255,255,0.10);
+      --accent:        #3987e5;
+      --accent-track:  #0d366b;
+      --good:          #0ca30c;
+      --good-text:     #0ca30c;
+      --critical:      #d03b3b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:          #0d0d0d;
+    --surface:       #1a1a19;
+    --text-primary:  #ffffff;
+    --text-secondary:#c3c2b7;
+    --text-muted:    #898781;
+    --grid:          #2c2c2a;
+    --baseline:      #383835;
+    --border:        rgba(255,255,255,0.10);
+    --accent:        #3987e5;
+    --accent-track:  #0d366b;
+    --good:          #0ca30c;
+    --good-text:     #0ca30c;
+    --critical:      #d03b3b;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.45;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-secondary); margin: 2px 0 20px; max-width: 60ch; }
+  .range-chip { color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+  .btn {
+    display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
+    font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  }
+  .btn:hover { filter: brightness(1.08); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 16px;
+  }
+
+  /* Hero + meter */
+  .hero-row { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+  .hero { font-size: 52px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; }
+  .hero-of { color: var(--text-secondary); font-size: 16px; }
+  .meter { margin-top: 14px; height: 12px; border-radius: 6px; background: var(--accent-track); overflow: hidden; }
+  .meter > div { height: 100%; border-radius: 6px 4px 4px 6px; background: var(--accent); min-width: 0; }
+  .meter-caption { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+  /* KPI tiles */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .label { color: var(--text-secondary); font-size: 13px; }
+  .tile .value { font-size: 26px; font-weight: 650; margin-top: 2px; }
+  .tile .hint { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  .card-sub { color: var(--text-muted); font-size: 13px; margin: 0 0 14px; }
+
+  /* Calendar */
+  .months { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 20px 24px; }
+  .month h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 6px; }
+  .grid7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .dow { color: var(--text-muted); font-size: 10px; text-align: center; padding-bottom: 2px; }
+  .day {
+    aspect-ratio: 1; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text-muted); cursor: default; position: relative;
+  }
+  .day:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .day.clean  { background: var(--good);     color: #fff; font-weight: 700; font-size: 12px; }
+  .day.slip   { background: var(--critical); color: #fff; font-weight: 700; font-size: 12px; }
+  .day.missed { border: 1px solid var(--baseline); }
+  .day.pending{ box-shadow: inset 0 0 0 2px var(--accent); color: var(--text-primary); font-weight: 600; }
+  .day.future { background: var(--grid); opacity: 0.55; }
+  .day.clean:hover, .day.slip:hover, .day.missed:hover, .day.pending:hover { filter: brightness(1.12); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; color: var(--text-secondary); font-size: 13px; }
+  .legend span.key {
+    display: inline-flex; width: 18px; height: 18px; border-radius: 4px; margin-right: 6px;
+    align-items: center; justify-content: center; font-size: 11px; vertical-align: -4px;
+  }
+
+  /* Line chart */
+  #chart-box { position: relative; }
+  #chart-box svg { display: block; width: 100%; height: auto; }
+  .chart-legend { display: flex; gap: 18px; color: var(--text-secondary); font-size: 13px; margin-top: 8px; }
+  .lkey { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: 3px; margin-right: 6px; border-radius: 1px; }
+
+  /* Tooltip */
+  #tip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); max-width: 260px;
+  }
+  #tip .t-date { color: var(--text-muted); font-size: 12px; }
+  #tip .t-main { font-weight: 650; }
+  #tip .t-note { color: var(--text-secondary); font-size: 12px; margin-top: 3px; white-space: pre-wrap; }
+  #tip .t-row { display: flex; align-items: baseline; gap: 8px; }
+
+  /* Table view */
+  details summary { cursor: pointer; color: var(--text-secondary); font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 14px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 600; font-size: 12px; border-bottom: 1px solid var(--baseline); padding: 6px 8px; }
+  td { border-bottom: 1px solid var(--grid); padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  td.earn-pos { color: var(--good-text); font-weight: 600; }
+
+  footer { color: var(--text-muted); font-size: 13px; margin-top: 24px; }
+  #loading, #error { color: var(--text-muted); padding: 40px 0; text-align: center; }
+  #error { color: var(--critical); display: none; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="loading">Loading progress…</div>
+  <div id="error"></div>
+
+  <div id="app">
+    <header class="top">
+      <div>
+        <h1 id="goal-name"></h1>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <span class="range-chip" id="range-chip"></span>
+        <a class="btn" id="report-btn" href="#" target="_blank" rel="noopener">Log today’s check-in</a>
+      </div>
+    </header>
+    <p class="subtitle" id="goal-desc"></p>
+
+    <section class="card">
+      <div class="hero-row">
+        <span class="hero" id="hero-earned">$0</span>
+        <span class="hero-of" id="hero-of"></span>
+      </div>
+      <div class="meter" role="img" id="meter"><div id="meter-fill"></div></div>
+      <div class="meter-caption"><span id="meter-left"></span><span id="meter-right"></span></div>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="card">
+      <h2>Daily record</h2>
+      <p class="card-sub">One square per day. Hover or tap a day for details — unreported days can still be backfilled from the check-in form.</p>
+      <div class="months" id="months"></div>
+      <div class="legend">
+        <span><span class="key" style="background:var(--good); color:#fff; font-weight:700;">✓</span>Clean day</span>
+        <span><span class="key" style="background:var(--critical); color:#fff; font-weight:700;">✗</span>Slip</span>
+        <span><span class="key" style="border:1px solid var(--baseline); color:var(--text-muted);">–</span>Not reported</span>
+        <span><span class="key" style="box-shadow: inset 0 0 0 2px var(--accent);"></span>Today</span>
+        <span><span class="key" style="background:var(--grid); opacity:.55;"></span>Upcoming</span>
+      </div>
+    </section>
+
+    <section class="card" id="chart-card">
+      <h2>Earnings over time</h2>
+      <p class="card-sub" id="chart-sub"></p>
+      <div id="chart-box"></div>
+      <div class="chart-legend">
+        <span><span class="lkey" style="border-color:var(--accent);"></span>Earned</span>
+        <span><span class="lkey" style="border-color:var(--baseline);"></span>On-pace trajectory</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary>All check-ins (table view)</summary>
+        <table id="log-table">
+          <thead><tr><th>Date</th><th>Result</th><th>Earned</th><th>Note</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </section>
+
+    <footer id="footer"></footer>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+(async function () {
+  const $ = (id) => document.getElementById(id);
+  const DAY = 86400000;
+
+  let config, log;
+  try {
+    const v = Date.now();
+    [config, log] = await Promise.all([
+      fetch("data/config.json?v=" + v).then((r) => { if (!r.ok) throw new Error("config " + r.status); return r.json(); }),
+      fetch("data/log.json?v=" + v).then((r) => { if (!r.ok) throw new Error("log " + r.status); return r.json(); }),
+    ]);
+  } catch (e) {
+    $("loading").style.display = "none";
+    const err = $("error");
+    err.style.display = "block";
+    err.textContent = "Couldn’t load tracker data (" + e.message + "). Try refreshing.";
+    return;
+  }
+
+  const entries = (log && log.entries) || {};
+  const money = (n, digits) => new Intl.NumberFormat("en-US", {
+    style: "currency", currency: config.currency || "USD",
+    minimumFractionDigits: digits ?? 0, maximumFractionDigits: digits ?? 0,
+  }).format(n);
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const parse = (d) => Date.parse(d + "T00:00:00Z");
+  const fmtDate = (d) => new Date(parse(d)).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric", year: "numeric" });
+
+  const startMs = parse(config.startDate), endMs = parse(config.endDate);
+  const totalDays = Math.round((endMs - startMs) / DAY) + 1;
+  const perDay = config.rewardTotal / totalDays;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: config.timezone || "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const todayMs = Math.min(Math.max(parse(today), startMs - DAY), endMs);
+  const started = parse(today) >= startMs;
+  const finished = parse(today) > endMs;
+  const elapsed = started ? Math.round((todayMs - startMs) / DAY) + 1 : 0;
+
+  let clean = 0, slips = 0, missed = 0;
+  for (let ms = startMs; ms <= endMs && ms <= todayMs; ms += DAY) {
+    const e = entries[iso(ms)];
+    if (!e) { if (iso(ms) !== today) missed++; }
+    else if (e.status === "success") clean++;
+    else slips++;
+  }
+  const earned = clean * perDay;
+
+  let currentStreak = 0, bestStreak = 0, run = 0;
+  for (let ms = startMs; ms <= todayMs; ms += DAY) {
+    const e = entries[iso(ms)];
+    if (e && e.status === "success") { run++; bestStreak = Math.max(bestStreak, run); }
+    else if (iso(ms) === today && !e) { /* today still open — doesn't break the streak */ }
+    else run = 0;
+  }
+  currentStreak = run;
+
+  // Header
+  document.title = config.goalName;
+  $("goal-name").textContent = config.goalName;
+  $("goal-desc").textContent = config.description || "";
+  $("range-chip").textContent = fmtDate(config.startDate).replace(/^[A-Za-z]+, /, "") + " → " + fmtDate(config.endDate).replace(/^[A-Za-z]+, /, "");
+  $("report-btn").href = "https://github.com/" + config.repo + "/issues/new?template=daily-report.yml";
+
+  // Hero + meter
+  $("hero-earned").textContent = money(earned);
+  $("hero-of").textContent = "earned of " + money(config.rewardTotal) + " · " + money(perDay, 2) + " per clean day";
+  const pct = Math.min(100, (earned / config.rewardTotal) * 100);
+  $("meter-fill").style.width = pct.toFixed(2) + "%";
+  $("meter").setAttribute("aria-label", "Progress: " + pct.toFixed(1) + "% of the reward earned");
+  $("meter-left").textContent = pct.toFixed(1) + "% of the reward";
+  $("meter-right").textContent = finished ? "Challenge complete" : (totalDays - elapsed) + " days to go";
+
+  // KPI tiles
+  // "Still winnable" = earned + every remaining day (incl. today while unreported) at full rate
+  const remainingDays = (totalDays - elapsed) + (started && !finished && !entries[today] ? 1 : 0);
+  const tiles = [
+    { label: "Clean days", value: String(clean), hint: "of " + elapsed + " so far" },
+    { label: "Slip days", value: String(slips), hint: slips === 0 ? "flawless so far" : "no reward, no penalty" },
+    { label: "Current streak", value: currentStreak + "d", hint: "best: " + bestStreak + "d" },
+    { label: "Still winnable", value: money(earned + remainingDays * perDay), hint: remainingDays + " days still open" },
+  ];
+  $("kpis").innerHTML = "";
+  for (const t of tiles) {
+    const el = document.createElement("div");
+    el.className = "tile";
+    for (const [cls, txt] of [["label", t.label], ["value", t.value], ["hint", t.hint]]) {
+      const d = document.createElement("div"); d.className = cls; d.textContent = txt; el.appendChild(d);
+    }
+    $("kpis").appendChild(el);
+  }
+
+  // Tooltip
+  const tip = $("tip");
+  function showTip(evt, rows) {
+    tip.innerHTML = "";
+    for (const r of rows) {
+      const d = document.createElement("div"); d.className = r.cls; d.textContent = r.text; tip.appendChild(d);
+    }
+    tip.style.display = "block";
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = evt.clientX + pad, y = evt.clientY + pad;
+    if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+    if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  const hideTip = () => { tip.style.display = "none"; };
+
+  // Calendar
+  const monthsBox = $("months");
+  const dows = ["S", "M", "T", "W", "T", "F", "S"];
+  let cursor = new Date(Date.UTC(new Date(startMs).getUTCFullYear(), new Date(startMs).getUTCMonth(), 1));
+  while (cursor.getTime() <= endMs) {
+    const y = cursor.getUTCFullYear(), m = cursor.getUTCMonth();
+    const monthEl = document.createElement("div");
+    monthEl.className = "month";
+    const h3 = document.createElement("h3");
+    h3.textContent = cursor.toLocaleDateString("en-US", { timeZone: "UTC", month: "long", year: "numeric" });
+    monthEl.appendChild(h3);
+    const grid = document.createElement("div");
+    grid.className = "grid7";
+    for (const d of dows) { const el = document.createElement("div"); el.className = "dow"; el.textContent = d; grid.appendChild(el); }
+    const first = Date.UTC(y, m, 1);
+    for (let i = 0; i < new Date(first).getUTCDay(); i++) grid.appendChild(document.createElement("div"));
+    const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    for (let dnum = 1; dnum <= daysInMonth; dnum++) {
+      const ms = Date.UTC(y, m, dnum), dstr = iso(ms);
+      const cell = document.createElement("div");
+      cell.className = "day";
+      if (ms < startMs || ms > endMs) { cell.style.visibility = "hidden"; cell.textContent = String(dnum); grid.appendChild(cell); continue; }
+      const e = entries[dstr];
+      let rows;
+      if (e && e.status === "success") {
+        cell.classList.add("clean"); cell.textContent = "✓";
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "✓ Clean day · +" + money(perDay, 2) }];
+      } else if (e) {
+        cell.classList.add("slip"); cell.textContent = "✗";
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "✗ Slip · not counted" }];
+      } else if (dstr === today && !finished) {
+        cell.classList.add("pending"); cell.textContent = String(dnum);
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "Today — not reported yet" }];
+      } else if (ms < parse(today)) {
+        cell.classList.add("missed"); cell.textContent = "–";
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "Not reported" }];
+      } else {
+        cell.classList.add("future"); cell.textContent = String(dnum);
+        rows = [{ cls: "t-date", text: fmtDate(dstr) }, { cls: "t-main", text: "Upcoming" }];
+      }
+      if (e && e.note) rows.push({ cls: "t-note", text: e.note });
+      cell.tabIndex = 0;
+      cell.addEventListener("pointermove", (evt) => showTip(evt, rows));
+      cell.addEventListener("pointerleave", hideTip);
+      cell.addEventListener("focus", (evt) => {
+        const r = cell.getBoundingClientRect();
+        showTip({ clientX: r.left + r.width / 2, clientY: r.top }, rows);
+      });
+      cell.addEventListener("blur", hideTip);
+      grid.appendChild(cell);
+    }
+    monthEl.appendChild(grid);
+    monthsBox.appendChild(monthEl);
+    cursor = new Date(Date.UTC(y, m + 1, 1));
+  }
+
+  // Cumulative earnings chart
+  const chartBox = $("chart-box");
+  $("chart-sub").textContent = "Cumulative reward earned vs. the on-pace trajectory to " + money(config.rewardTotal) + ".";
+  const actual = [];
+  let cum = 0;
+  for (let ms = startMs; ms <= todayMs && started; ms += DAY) {
+    const e = entries[iso(ms)];
+    if (e && e.status === "success") cum += perDay;
+    actual.push({ ms, v: cum });
+  }
+  function drawChart() {
+    chartBox.innerHTML = "";
+    if (actual.length < 2) {
+      $("chart-card").style.display = actual.length === 0 ? "none" : "";
+      if (actual.length < 2) { $("chart-sub").textContent = "The earnings curve appears after the first couple of days."; return; }
+    }
+    const W = Math.max(320, chartBox.clientWidth), H = 240;
+    const M = { top: 12, right: 16, bottom: 24, left: 48 };
+    const iw = W - M.left - M.right, ih = H - M.top - M.bottom;
+    const x = (ms) => M.left + ((ms - startMs) / (endMs - startMs)) * iw;
+    const yMax = config.rewardTotal;
+    const y = (v) => M.top + ih - (v / yMax) * ih;
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    const el = (tag, attrs) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+    // Gridlines + y ticks
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = (yMax / ticks) * i, yy = y(v);
+      svg.appendChild(el("line", { x1: M.left, x2: W - M.right, y1: yy, y2: yy, stroke: css("--grid"), "stroke-width": 1 }));
+      const t = el("text", { x: M.left - 8, y: yy + 4, "text-anchor": "end", "font-size": 11, fill: css("--text-muted"), style: "font-variant-numeric: tabular-nums" });
+      t.textContent = money(v);
+      svg.appendChild(t);
+    }
+    // Month ticks on x
+    let mc = new Date(Date.UTC(new Date(startMs).getUTCFullYear(), new Date(startMs).getUTCMonth() + 1, 1));
+    while (mc.getTime() < endMs) {
+      const t = el("text", { x: x(mc.getTime()), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: css("--text-muted") });
+      t.textContent = mc.toLocaleDateString("en-US", { timeZone: "UTC", month: "short" });
+      svg.appendChild(t);
+      mc = new Date(Date.UTC(mc.getUTCFullYear(), mc.getUTCMonth() + 1, 1));
+    }
+    // Baseline
+    svg.appendChild(el("line", { x1: M.left, x2: W - M.right, y1: y(0), y2: y(0), stroke: css("--baseline"), "stroke-width": 1 }));
+    // On-pace reference (context, de-emphasized)
+    svg.appendChild(el("line", { x1: x(startMs), y1: y(0), x2: x(endMs), y2: y(yMax), stroke: css("--baseline"), "stroke-width": 2, "stroke-linecap": "round" }));
+    // Actual earned (emphasis)
+    const d = actual.map((p, i) => (i ? "L" : "M") + x(p.ms).toFixed(1) + " " + y(p.v).toFixed(1)).join(" ");
+    svg.appendChild(el("path", { d, fill: "none", stroke: css("--accent"), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const last = actual[actual.length - 1];
+    svg.appendChild(el("circle", { cx: x(last.ms), cy: y(last.v), r: 6, fill: css("--surface") }));
+    svg.appendChild(el("circle", { cx: x(last.ms), cy: y(last.v), r: 4, fill: css("--accent") }));
+    const endLabel = el("text", { x: Math.min(x(last.ms) + 10, W - M.right - 4), y: y(last.v) - 8, "font-size": 12, "font-weight": 650, fill: css("--text-primary") });
+    endLabel.textContent = money(last.v);
+    svg.appendChild(endLabel);
+
+    // Crosshair + tooltip
+    const cross = el("line", { y1: M.top, y2: M.top + ih, stroke: css("--baseline"), "stroke-width": 1, visibility: "hidden" });
+    svg.appendChild(cross);
+    const hit = el("rect", { x: M.left, y: M.top, width: iw, height: ih, fill: "transparent" });
+    hit.addEventListener("pointermove", (evt) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((evt.clientX - r.left) / r.width) * W;
+      const ms = startMs + Math.round(((px - M.left) / iw) * ((endMs - startMs) / DAY)) * DAY;
+      const clamped = Math.min(Math.max(ms, startMs), endMs);
+      const xx = x(clamped);
+      cross.setAttribute("x1", xx); cross.setAttribute("x2", xx);
+      cross.setAttribute("visibility", "visible");
+      const idx = Math.round((clamped - startMs) / DAY);
+      const pace = (idx + 1) * perDay;
+      const rows = [{ cls: "t-date", text: fmtDate(iso(clamped)) }];
+      if (idx < actual.length) rows.push({ cls: "t-main", text: money(actual[idx].v, 2) + " earned" });
+      rows.push({ cls: "t-note", text: "On pace: " + money(Math.min(pace, yMax), 2) });
+      showTip(evt, rows);
+    });
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+    svg.appendChild(hit);
+    chartBox.appendChild(svg);
+  }
+  $("loading").style.display = "none";
+  $("app").style.display = "block";
+  drawChart();
+  let rs; addEventListener("resize", () => { clearTimeout(rs); rs = setTimeout(drawChart, 150); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawChart);
+
+  // Table view
+  const tbody = $("log-table").querySelector("tbody");
+  const sorted = Object.keys(entries).sort().reverse();
+  for (const dstr of sorted) {
+    const e = entries[dstr];
+    const tr = document.createElement("tr");
+    const cells = [
+      { text: dstr },
+      { text: e.status === "success" ? "✓ Clean" : "✗ Slip" },
+      { text: e.status === "success" ? "+" + money(perDay, 2) : money(0, 2), cls: e.status === "success" ? "earn-pos" : "" },
+      { text: e.note || "" },
+    ];
+    for (const c of cells) { const td = document.createElement("td"); td.textContent = c.text; if (c.cls) td.className = c.cls; tr.appendChild(td); }
+    tbody.appendChild(tr);
+  }
+  if (!sorted.length) {
+    const tr = document.createElement("tr"); const td = document.createElement("td");
+    td.colSpan = 4; td.textContent = "No check-ins recorded yet."; td.style.color = "var(--text-muted)";
+    tr.appendChild(td); tbody.appendChild(tr);
+  }
+
+  $("footer").textContent = "Each clean day earns " + money(perDay, 2) + " (" + money(config.rewardTotal) + " ÷ " + totalDays +
+    " days). Slip days aren't punished — they just don't count. Share this page's link with anyone who should follow along.";
+})();
+</script>
+</body>
+</html>

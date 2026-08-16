@@ -1,0 +1,30 @@
+name: Daily check-in
+description: Self-report today's result toward the goal
+title: "Daily check-in"
+labels: ["daily-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report how the day went. Submitting this form records the result,
+        updates the dashboard, and closes any reminder for that day.
+  - type: dropdown
+    id: status
+    attributes:
+      label: How did it go?
+      options:
+        - "✅ Success — stayed gluten-free"
+        - "❌ Slip — had gluten"
+    validations:
+      required: true
+  - type: input
+    id: date
+    attributes:
+      label: Date
+      description: "Format: YYYY-MM-DD. Leave blank to record it for today (UTC)."
+      placeholder: "2026-08-16"
+  - type: textarea
+    id: note
+    attributes:
+      label: Note (optional)
+      description: Anything worth remembering about the day — shown in the dashboard tooltip.
