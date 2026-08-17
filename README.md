@@ -88,19 +88,32 @@ write issues in this repo.
 Lost or leaked? Revoke the token in the same settings screen and issue a new one —
 nothing else changes.
 
-## Admin: email nudge for the participant (optional)
+## Admin: getting the nudge to the participant (optional)
 
-The participant has no GitHub account, so reminders reach them by email:
+The participant has no GitHub account, so pick a delivery channel. Either (or both) works;
+without any, the nudge still opens a reminder issue assigned to the admin, so you can pass
+it along yourself.
+
+### Option A — phone push via ntfy.sh (recommended: no accounts, no passwords)
+
+1. The participant installs the free **ntfy** app ([iOS](https://apps.apple.com/us/app/ntfy/id1625396347) /
+   [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy)) and subscribes to a
+   topic with a hard-to-guess name you invent, e.g. `eat-healthy-ky-7k2q9x`.
+2. Repo **Settings → Secrets and variables → Actions → New repository secret**:
+   `NTFY_TOPIC` = that topic name.
+3. Done — an unreported day triggers a push notification at nudge hour; tapping it opens the
+   dashboard. (Treat the topic name like a password: anyone who knows it can send to it —
+   that's the whole auth model, which is why the random suffix matters.)
+
+### Option B — email via any SMTP provider
 
 1. Set `participantEmail` in `data/config.json`.
-2. Repo **Settings → Secrets and variables → Actions → New repository secret**, add:
-   - `MAIL_USERNAME` — a Gmail address to send from (yours works),
-   - `MAIL_PASSWORD` — an [app password](https://myaccount.google.com/apppasswords) for it
-     (requires 2-step verification; a normal password won't work).
-3. Done — every evening an unreported day triggers an email with a dashboard link.
-
-Without these secrets the nudge still opens a reminder issue assigned to the admin, so you
-can pass the reminder along yourself.
+2. Add secrets `MAIL_USERNAME` and `MAIL_PASSWORD`. By default they're used against Gmail
+   (the password must be a [Gmail app password](https://myaccount.google.com/apppasswords),
+   which requires 2-step verification — a normal password won't work). **No Gmail app
+   password?** Use any free SMTP provider instead (e.g. [Brevo](https://www.brevo.com),
+   300 emails/day free): sign up, copy its SMTP credentials, and also set the `MAIL_SERVER`
+   (e.g. `smtp-relay.brevo.com`) and `MAIL_PORT` (e.g. `587`) secrets.
 
 ## Daily use (participant)
 

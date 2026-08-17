@@ -89,17 +89,36 @@ jobs:
               ].join("\n"),
             });
 
+      - name: Push notification via ntfy.sh
+        # No-account option: the participant subscribes to a secret topic in the
+        # free ntfy app; this posts the nudge to it. Set the NTFY_TOPIC secret.
+        if: steps.check.outputs.nudge == 'true' && env.NTFY_TOPIC != ''
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GOAL: ${{ steps.check.outputs.goal }}
+          DASHBOARD: ${{ steps.check.outputs.dashboard }}
+        run: |
+          curl -sS \
+            -H "Title: ⏰ $GOAL — today isn't reported yet" \
+            -H "Click: $DASHBOARD" \
+            -H "Tags: alarm_clock" \
+            -d "Open the dashboard and log today — it takes ten seconds. Every day counts toward the reward." \
+            "https://ntfy.sh/$NTFY_TOPIC"
+
       - name: Email the participant
         # Runs only when today is unreported, a participant email is configured,
-        # and the SMTP secrets exist (e.g. Gmail address + app password).
+        # and the SMTP secrets exist. Defaults to Gmail (address + app password);
+        # set the MAIL_SERVER / MAIL_PORT secrets to use any other SMTP provider
+        # (e.g. Brevo) with its own username/password.
         if: steps.check.outputs.nudge == 'true' && steps.check.outputs.email != '' && env.MAIL_USERNAME != ''
         uses: dawidd6/action-send-mail@v3
         env:
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
+          server_address: ${{ secrets.MAIL_SERVER || 'smtp.gmail.com' }}
+          server_port: ${{ secrets.MAIL_PORT || 465 }}
+          # implicit TLS on 465; STARTTLS otherwise (e.g. Brevo on 587)
+          secure: ${{ secrets.MAIL_PORT == '' || secrets.MAIL_PORT == '465' }}
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           from: Progress Tracker
