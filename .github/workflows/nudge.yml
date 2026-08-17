@@ -2,9 +2,12 @@ name: Daily check-in nudge
 
 on:
   schedule:
-    # 18:00 UTC daily — adjust to the participant's evening. Also sends an email
-    # to config.participantEmail if the MAIL_USERNAME/MAIL_PASSWORD secrets are set.
-    - cron: "0 18 * * *"
+    # Both candidate UTC hours for config.nudgeHourLocal (20:00) in
+    # config.timezone (America/New_York): 00:00 UTC = 8pm EDT, 01:00 UTC =
+    # 8pm EST. The job checks the local clock and only proceeds when it's
+    # actually nudge hour, so the reminder lands at 8pm local all year.
+    - cron: "0 0 * * *"
+    - cron: "0 1 * * *"
   workflow_dispatch:
 
 permissions:
@@ -29,12 +32,25 @@ jobs:
             const log = JSON.parse(fs.readFileSync("data/log.json", "utf8"));
             const { owner, repo } = context.repo;
 
+            const tz = config.timezone || "UTC";
             const today = new Intl.DateTimeFormat("en-CA", {
-              timeZone: config.timezone || "UTC",
+              timeZone: tz,
               year: "numeric", month: "2-digit", day: "2-digit",
             }).format(new Date());
 
             core.setOutput("nudge", "false");
+
+            // Scheduled runs fire at every candidate UTC hour; only proceed at
+            // the configured local hour. Manual runs skip the gate.
+            if (context.eventName === "schedule" && Number.isInteger(config.nudgeHourLocal)) {
+              const localHour = Number(new Intl.DateTimeFormat("en-US", {
+                timeZone: tz, hour: "2-digit", hour12: false, hourCycle: "h23",
+              }).format(new Date()));
+              if (localHour !== config.nudgeHourLocal) {
+                core.info(`Local hour ${localHour} != nudge hour ${config.nudgeHourLocal} — not this run.`);
+                return;
+              }
+            }
             core.setOutput("today", today);
             core.setOutput("email", config.participantEmail || "");
             core.setOutput("goal", config.goalName || "the challenge");

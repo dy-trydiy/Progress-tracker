@@ -22,7 +22,7 @@ body:
     id: date
     attributes:
       label: Date
-      description: "Format: YYYY-MM-DD. Leave blank to record it for today (UTC)."
+      description: "Format: YYYY-MM-DD. Leave blank to record it for today (US Eastern)."
       placeholder: "2026-08-16"
   - type: textarea
     id: note

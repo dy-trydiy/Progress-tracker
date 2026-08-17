@@ -7,7 +7,7 @@
   "endDate": "2027-03-31",
   "rewardTotal": 2000,
   "currency": "USD",
-  "timezone": "UTC",
+  "timezone": "America/New_York",
   "participantEmail": "newyourkate@gmail.com",
   "bonus": {
     "streakDays": 5,
@@ -17,5 +17,6 @@
     "success": 10,
     "partial": 3,
     "slip": 0
-  }
+  },
+  "nudgeHourLocal": 20
 }

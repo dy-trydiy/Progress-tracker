@@ -39,7 +39,7 @@ slips, and unreported days all reset the streak. Configure via `bonus` in `data/
 | **Dashboard** (`index.html`, GitHub Pages) | Live progress: money earned, streaks, per-day calendar, earnings chart — plus the check-in panel. |
 | **In-page check-in** | The participant picks ✅/❌; the page files a `daily-report` issue via the GitHub API using the report code. The code is stored only in their browser, never in this repo or the page source. |
 | **Recorder** (`record-report.yml`) | Parses the check-in, updates `data/log.json`, comments the running totals, closes the issue and that day's reminder. Re-reporting a date corrects it (newest wins). Only issues authored by the owner/collaborators are accepted — the report code is the admin's token, so participant reports qualify. |
-| **Nudge** (`nudge.yml`) | Every evening (18:00 UTC by default), if today is unreported: emails the participant (optional, see below) and opens a reminder issue assigned to the admin. Auto-closes once the check-in lands. |
+| **Nudge** (`nudge.yml`) | Every evening at `nudgeHourLocal` in the challenge timezone (8pm by default), if today is unreported: emails the participant (optional, see below) and opens a reminder issue assigned to the admin. Auto-closes once the check-in lands. |
 | **Deploy** (`pages.yml`) | Every data update redeploys the dashboard automatically. |
 
 ## Admin: changing the challenge parameters
@@ -58,14 +58,17 @@ Everything lives in [`data/config.json`](data/config.json) (the dashboard footer
 | `bonus.streakDays` | consecutive successes needed per bonus block | 5 |
 | `bonus.percent` | bonus as % of the block's success reward (5 × $10 × 20% = +$10) | 20 |
 | `currency` | ISO currency code for all displayed amounts | "USD" |
-| `timezone` | IANA name; defines when "today" rolls over | "UTC" |
+| `timezone` | IANA name; defines when "today" rolls over | "America/New_York" |
+| `nudgeHourLocal` | hour (0–23, in `timezone`) when the daily nudge goes out | 20 |
 | `participant` | display name (no GitHub account needed) | "KY" |
 | `participantEmail` | where the nudge email goes | — |
 
 Changing rates, dates, or the bonus mid-challenge re-prices every day, past and future — set
-the terms up front. The one setting outside this file is the nudge **hour**: the cron line in
-`.github/workflows/nudge.yml` (UTC). Only repo collaborators can edit any of this, so
-parameters are admin-only by construction.
+the terms up front. The nudge workflow's cron entries (in `.github/workflows/nudge.yml`) must
+cover every UTC hour that `nudgeHourLocal` can fall on across daylight-saving changes — the
+job checks the local clock and only acts at the configured hour, so the reminder lands at the
+same local time all year. Only repo collaborators can edit any of this, so parameters are
+admin-only by construction.
 
 ## Admin: creating the participant's report code
 
