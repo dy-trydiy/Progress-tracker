@@ -29,6 +29,12 @@
       "note": "Still no added sugar!",
       "reportedAt": "2026-08-20T21:04:09.932Z",
       "issue": 21
+    },
+    "2026-08-21": {
+      "status": "partial",
+      "note": "Still no added sugar! Still!",
+      "reportedAt": "2026-08-21T19:46:15.800Z",
+      "issue": 22
     }
   }
 }
