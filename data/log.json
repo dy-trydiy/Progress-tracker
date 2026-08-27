@@ -65,6 +65,12 @@
       "note": "I’m in Paris 💔",
       "reportedAt": "2026-08-26T20:45:55.276Z",
       "issue": 27
+    },
+    "2026-08-27": {
+      "status": "slip",
+      "note": "I miss homemade food!",
+      "reportedAt": "2026-08-27T20:57:46.186Z",
+      "issue": 28
     }
   }
 }
