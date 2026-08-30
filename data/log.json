@@ -83,6 +83,12 @@
       "note": "Strudla!",
       "reportedAt": "2026-08-30T00:11:22.408Z",
       "issue": 30
+    },
+    "2026-08-30": {
+      "status": "partial",
+      "note": "Recovery!",
+      "reportedAt": "2026-08-30T23:01:51.856Z",
+      "issue": 31
     }
   }
 }
