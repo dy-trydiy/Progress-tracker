@@ -89,6 +89,12 @@
       "note": "Recovery!",
       "reportedAt": "2026-08-30T23:01:51.856Z",
       "issue": 31
+    },
+    "2026-08-31": {
+      "status": "slip",
+      "note": "Hobonochi!",
+      "reportedAt": "2026-09-01T01:49:06.559Z",
+      "issue": 32
     }
   }
 }
