@@ -95,6 +95,12 @@
       "note": "Hobonochi!",
       "reportedAt": "2026-09-01T01:49:06.559Z",
       "issue": 32
+    },
+    "2026-09-01": {
+      "status": "partial",
+      "note": "Good but not organized.",
+      "reportedAt": "2026-09-02T00:21:30.922Z",
+      "issue": 33
     }
   }
 }
