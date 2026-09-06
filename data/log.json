@@ -119,6 +119,12 @@
       "note": "Movies on Fridays!",
       "reportedAt": "2026-09-05T00:36:34.820Z",
       "issue": 36
+    },
+    "2026-09-05": {
+      "status": "slip",
+      "note": "No sugar!",
+      "reportedAt": "2026-09-06T00:29:18.809Z",
+      "issue": 37
     }
   }
 }
