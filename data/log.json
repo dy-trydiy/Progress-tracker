@@ -185,6 +185,12 @@
       "note": "A piece of bread but overall healthy!",
       "reportedAt": "2026-09-16T01:02:11.914Z",
       "issue": 48
+    },
+    "2026-09-16": {
+      "status": "partial",
+      "note": "A piece of bread but overall healthy!",
+      "reportedAt": "2026-09-17T02:04:21.262Z",
+      "issue": 49
     }
   }
 }
