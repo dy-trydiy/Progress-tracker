@@ -371,6 +371,12 @@
       "note": "Tomorrow is a slip day!",
       "reportedAt": "2026-10-17T00:48:39.785Z",
       "issue": 79
+    },
+    "2026-10-17": {
+      "status": "slip",
+      "note": "🍰!",
+      "reportedAt": "2026-10-18T01:07:46.027Z",
+      "issue": 80
     }
   }
 }
