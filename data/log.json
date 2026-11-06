@@ -485,6 +485,12 @@
       "note": "Tiramisu",
       "reportedAt": "2026-11-04T23:06:40.877Z",
       "issue": 98
+    },
+    "2026-11-05": {
+      "status": "slip",
+      "note": "Tiramisu",
+      "reportedAt": "2026-11-06T01:06:24.462Z",
+      "issue": 99
     }
   }
 }
