@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Self-healing net: if an event-triggered deploy fails (e.g. a GitHub
+    # artifact-API incident), this catches the dashboard up within a day.
+    # 09:23 UTC = overnight in US Eastern, outside GitHub's peak load.
+    - cron: "23 9 * * *"
 
 permissions:
   contents: read
