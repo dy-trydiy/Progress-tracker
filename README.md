@@ -40,7 +40,7 @@ slips, and unreported days all reset the streak. Configure via `bonus` in `data/
 | **In-page check-in** | The participant picks ✅/❌; the page files a `daily-report` issue via the GitHub API using the report code. The code is stored only in their browser, never in this repo or the page source. |
 | **Recorder** (`record-report.yml`) | Parses the check-in, updates `data/log.json`, comments the running totals, closes the issue and that day's reminder. Re-reporting a date corrects it (newest wins). Only issues authored by the owner/collaborators are accepted — the report code is the admin's token, so participant reports qualify. |
 | **Nudge** (`nudge.yml`) | Every evening at `nudgeHourLocal` in the challenge timezone (8pm by default), if today is unreported: emails the participant (optional, see below) and opens a reminder issue assigned to the admin. Auto-closes once the check-in lands. |
-| **Deploy** (`pages.yml`) | Every data update redeploys the dashboard automatically. |
+| **Publishing** | Pages serves the `main` branch directly (Settings → Pages → Deploy from a branch → `main`), so every data commit publishes automatically — no deploy workflow to fail. |
 
 ## Admin: changing the challenge parameters
 
@@ -125,6 +125,6 @@ Dashboard: `https://<owner>.github.io/Progress-tracker/`
 
 ## One-time setup (already done for this repo)
 
-1. Settings → Pages → Source: **GitHub Actions**.
-2. Push to `main` → the dashboard deploys automatically.
+1. Settings → Pages → Source: **Deploy from a branch** → Branch: `main`, folder `/ (root)`.
+2. Any push to `main` → GitHub publishes the dashboard automatically (~a minute).
 3. Admin: Watch the repo (Issues) to get reminder notifications.
